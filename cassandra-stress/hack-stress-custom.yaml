@@ -1,0 +1,52 @@
+### Seção de DML ###
+
+# Nome do Keyspace
+keyspace: hackspacestress
+
+# CQL para criar a keyspace (opconal se já existir)
+keyspace_definition: |
+ CREATE KEYSPACE hackspacestress WITH replication = {'class':'SimpleStrategy', 'replication_factor':1};
+
+# Nome da Tabela
+table: temperature_by_day
+
+# CQL de criação da tabela 
+table_definition: |
+ CREATE TABLE temperature_by_day (
+  weatherstation_id text,
+  date text,
+  event_time timestamp,
+  temperature text,
+  PRIMARY KEY ((weatherstation_id,date),event_time)
+ ) WITH CLUSTERING ORDER BY (event_time ASC);
+
+### Especificacoes de distribuição de colunas 
+columnspec:
+ - name: weatherstation_id
+   size: exp(1..3)
+   population: uniform(4..8)
+
+ - name: date
+   cluster: fixed(1440)
+
+ - name: event_time
+   cluster: fixed(1440)
+
+ - name: temperature
+   cluster: fixed(1000)
+
+### INSERT
+insert:
+ partitions: fixed(1)
+ select: fixed(1)/1000
+ batchtype: UNLOGGED
+
+# DML
+queries:
+ simplequery:
+  cql: select * from temperature_by_day where weatherstation_id = ? AND date = ? LIMIT 1
+  fields: samerow
+
+ timeline:
+  cql: select weatherstation_id, date, event_time, temperature FROM temperature_by_day WHERE weatherstation_id = ? LIMIT 10
+  fields: samerow
